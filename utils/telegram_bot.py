@@ -7,6 +7,8 @@ from telegram.ext import (
 from telegram.request import HTTPXRequest
 from utils.config import BOT_TOKEN, CHAT_ID, SOCKS_PROXY
 from utils.system_info import gather_system_info
+from telegram import Bot
+
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +93,14 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Goodbye! Use /start to begin again.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
+
+
+bot = Bot(token=BOT_TOKEN)
+
+def send_to_telegram_message(message: str):
+    try:
+        bot.send_message(chat_id=CHAT_ID, text=message)
+        logging.info(f"Message sent to Telegram: {message}")
+    except Exception as e:
+        logging.error(f"Error sending message to Telegram: {e}")
+        raise
