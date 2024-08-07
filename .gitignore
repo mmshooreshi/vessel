@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+
+# VS Code settings (if you use VS Code)
+.vscode/
+
+# PyCharm settings (if you use PyCharm)
+.idea/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+
+# Environment variables file
+.env
+
+# Temporary files
+*.tmp
+*.temp
