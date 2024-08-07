@@ -173,8 +173,53 @@ def gather_system_info():
 
 
 
-
 async def send_system_info(context: CallbackContext) -> None:
+    """Sends the detailed system information to the Telegram bot."""
+    chat_id = context.job.chat_id  # Access chat_id directly
+    info = gather_system_info()
+    log_info(f"System Info: {info}")
+
+    # Construct the message with all relevant system information
+    message = (
+        f"🔔 *Telegram Vessel is now running*\n\n"
+        f"*Hostname:* {info['Hostname']}\n"
+        f"*IP Address:* {info['IP Address']}\n"
+        f"*OS:* {info['OS']}\n"
+        f"*OS Version:* {info['OS Version']}\n"
+        f"*Architecture:* {info['Architecture']}\n"
+        f"*Processor:* {info['Processor']}\n"
+        f"*Python Version:* {info['Python Version']}\n\n"
+        f"*Memory Info:*\n"
+        f"  - Total Memory: {info['Total Memory']}\n"
+        f"  - Available Memory: {info['Available Memory']}\n"
+        f"  - Used Memory: {info['Used Memory']}\n"
+        f"  - Memory Usage: {info['Memory Usage']}\n\n"
+        f"*Disk Info:*\n"
+        f"  - Total Disk Space: {info['Total Disk Space']}\n"
+        f"  - Used Disk Space: {info['Used Disk Space']}\n"
+        f"  - Free Disk Space: {info['Free Disk Space']}\n"
+        f"  - Disk Usage: {info['Disk Usage']}\n\n"
+        f"*Network Interfaces:*\n"
+    )
+
+    # Add network interfaces and their IPs
+    for iface, ip in info['Network Interfaces'].items():
+        message += f"  - {iface}: {ip}\n"
+
+    # Add uptime and boot time information
+    message += (
+        f"\n*System Uptime:* {info['System Uptime']}\n"
+        f"*Last Boot Time:* {info['Last Boot Time']}\n\n"
+        f"*Last Reboot Logs:*\n"
+        f"{info['Last Reboot Logs']}"
+    )
+
+    # Send the constructed message to the Telegram bot
+    await context.bot.send_message(chat_id=chat_id, text=message, parse_mode='Markdown')
+    log_info("Detailed system information sent to the user.")
+    send_to_telegram(message)
+
+async def send_system_info_basic(context: CallbackContext) -> None:
     """Sends the system information to the Telegram bot."""
     chat_id = context.job.chat_id  # Access chat_id directly
     info = gather_system_info()
