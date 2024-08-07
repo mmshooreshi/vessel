@@ -24,6 +24,11 @@ from utils.seed_management import plant_seeds, check_seed_activation
 from utils.logging import log_info, log_warning, log_error, log_debug, log_critical
 import httpx
 
+import psutil
+import shutil
+import subprocess
+import datetime
+
 # Setup logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -68,7 +73,7 @@ except Exception as e:
     log_critical(f"An unexpected error occurred during bot initialization: {e}")
     raise
 
-def gather_system_info() -> Dict[str, str]:
+def gather_system_info_basic() -> Dict[str, str]:
     """Gathers basic system information."""
     system_info = {
         "Hostname": socket.gethostname(),
@@ -80,6 +85,94 @@ def gather_system_info() -> Dict[str, str]:
         "Python Version": platform.python_version(),
     }
     return system_info
+
+
+
+
+
+def run_command(command):
+    """Run a shell command and return the output."""
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+def get_boot_time():
+    """Get system boot time and convert it to a human-readable format."""
+    boot_time_timestamp = psutil.boot_time()
+    bt = datetime.datetime.fromtimestamp(boot_time_timestamp)
+    return bt.strftime("%Y-%m-%d %H:%M:%S")
+
+def get_uptime():
+    """Calculate the system uptime since last reboot."""
+    boot_time = psutil.boot_time()
+    now = datetime.datetime.now().timestamp()
+    uptime_seconds = now - boot_time
+    uptime_string = str(datetime.timedelta(seconds=int(uptime_seconds)))
+    return uptime_string
+
+def get_last_reboot_logs():
+    """Fetch the logs related to the last system reboot."""
+    logs = run_command("journalctl -b -1 -n 50")
+    return logs if logs else "No logs found for the last reboot."
+
+def gather_system_info():
+    """Gathers comprehensive system information."""
+    
+    # Basic system information
+    system_info = {
+        "Hostname": socket.gethostname(),
+        "IP Address": run_command("hostname -I"),
+        "OS": f"{platform.system()} {platform.release()}",
+        "OS Version": platform.version(),
+        "Architecture": platform.machine(),
+        "Processor": platform.processor(),
+        "Python Version": platform.python_version(),
+    }
+
+    # Memory information
+    mem = psutil.virtual_memory()
+    system_info.update({
+        "Total Memory": f"{mem.total / (1024 ** 3):.2f} GB",
+        "Available Memory": f"{mem.available / (1024 ** 3):.2f} GB",
+        "Used Memory": f"{mem.used / (1024 ** 3):.2f} GB",
+        "Memory Usage": f"{mem.percent}%",
+    })
+
+    # Disk usage information
+    disk_usage = shutil.disk_usage("/")
+    system_info.update({
+        "Total Disk Space": f"{disk_usage.total / (1024 ** 3):.2f} GB",
+        "Used Disk Space": f"{disk_usage.used / (1024 ** 3):.2f} GB",
+        "Free Disk Space": f"{disk_usage.free / (1024 ** 3):.2f} GB",
+        "Disk Usage": f"{disk_usage.used / disk_usage.total * 100:.2f}%",
+    })
+
+    # Network interfaces and IPs
+    net_if_addrs = psutil.net_if_addrs()
+    network_info = {}
+    for interface, addrs in net_if_addrs.items():
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                network_info[interface] = addr.address
+
+    system_info.update({
+        "Network Interfaces": network_info
+    })
+
+    # Uptime and boot information
+    system_info.update({
+        "Last Boot Time": get_boot_time(),
+        "System Uptime": get_uptime(),
+    })
+
+    # Logs related to the last reboot
+    system_info.update({
+        "Last Reboot Logs": get_last_reboot_logs()
+    })
+
+    return system_info
+
+
+
 
 async def send_system_info(context: CallbackContext) -> None:
     """Sends the system information to the Telegram bot."""
