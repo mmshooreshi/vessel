@@ -100,7 +100,7 @@ bot = Bot(token=BOT_TOKEN)
 def send_to_telegram_message(message: str):
     try:
         bot.send_message(chat_id=CHAT_ID, text=message)
-        logging.info(f"Message sent to Telegram: {message}")
+        logging.info(f"Message sent to Telegram: {message} | CHAT_ID: {CHAT_ID}")
     except Exception as e:
         logging.error(f"Error sending message to Telegram: {e}")
         raise
