@@ -14,12 +14,12 @@ venv:
 	@echo "Creating virtual environment..."
 	python3 -m venv $(VENV_DIR)
 
-# # Install dependencies
-# .PHONY: install-deps
-# install-deps: venv
-# 	@echo "Installing dependencies..."
-# 	$(PIP) install --upgrade pip
-# 	$(PIP) install -r requirements.txt
+# Install dependencies
+.PHONY: install-deps
+install-deps: venv
+	@echo "Installing dependencies..."
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements.txt
 
 # Generate requirements.txt using pipreqs
 .PHONY: gen-reqs
