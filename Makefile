@@ -21,17 +21,16 @@ NC=\033[0m # No Color
 # Define a function to show spinner
 spinner = /bin/bash -c 'spin() { \
     spinner="/|\\-/"; \
-    while :; do \
+    while kill -0 $$1 2>/dev/null; do \
         for i in `seq 0 3`; do \
-            echo -ne "\r${CYAN}[...]${NC} $1 ${spinner:$i:1}"; \
+            echo -ne "\r${CYAN}[...]${NC} $2 ${spinner:$i:1}"; \
             sleep 0.1; \
         done; \
     done; \
+    echo -ne "\r${GREEN}✔${NC} $2 Completed\n"; \
 }; \
-spin "$1" & \
-SPIN_PID=$!; \
-trap "kill $${SPIN_PID}" EXIT; \
-wait'
+spin $$! "$1" "$2" & \
+wait $$1'
 
 # Default target
 .PHONY: all
@@ -42,8 +41,7 @@ all: venv install-deps run
 venv:
 	@echo -e "${CYAN}====================================================${NC}"
 	@echo -e "${CYAN}● Creating virtual environment in $(VENV_DIR)...${NC}"
-	@$(call spinner, "Creating virtual environment")
-	@python3 -m venv $(VENV_DIR)
+	@$(call spinner,$(shell python3 -m venv $(VENV_DIR) & echo $$!),"Creating virtual environment")
 	@echo -e "${GREEN}✔ Virtual environment created successfully.${NC}"
 	@echo -e "${CYAN}====================================================${NC}"
 
@@ -52,14 +50,11 @@ venv:
 install-deps: venv
 	@echo -e "${CYAN}====================================================${NC}"
 	@echo -e "${CYAN}● Installing PySocks for SOCKS proxy support...${NC}"
-	@$(call spinner, "Installing PySocks")
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple pysocks
+	@$(call spinner,$(shell $(PIP) install -i https://mirror-pypi.runflare.com/simple pysocks & echo $$!),"Installing PySocks")
 	@echo -e "${GREEN}✔ PySocks installed successfully.${NC}"
 	@echo -e "${CYAN}----------------------------------------------------${NC}"
 	@echo -e "${CYAN}● Installing dependencies from requirements.txt using SOCKS proxy...${NC}"
-	@$(call spinner, "Installing dependencies")
-	# @$(PIP) install -i https://mirror-pypi.runflare.com/simple --upgrade pip
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple -r requirements.txt
+	@$(call spinner,$(shell $(PIP) install -i https://mirror-pypi.runflare.com/simple -r requirements.txt & echo $$!),"Installing dependencies")
 	@echo -e "${GREEN}✔ Dependencies installed successfully.${NC}"
 	@echo -e "${CYAN}====================================================${NC}"
 
@@ -68,9 +63,8 @@ install-deps: venv
 gen-reqs: venv
 	@echo -e "${CYAN}====================================================${NC}"
 	@echo -e "${CYAN}● Generating requirements.txt using pipreqs...${NC}"
-	@$(call spinner, "Generating requirements.txt")
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple pipreqs  # Ensure pipreqs is installed
-	@$(PIPREQS) .
+	@$(call spinner,$(shell $(PIP) install -i https://mirror-pypi.runflare.com/simple pipreqs & echo $$!),"Installing pipreqs")
+	@$(call spinner,$(shell $(PIPREQS) . & echo $$!),"Generating requirements.txt")
 	@echo -e "${GREEN}✔ requirements.txt generated successfully.${NC}"
 	@echo -e "${CYAN}====================================================${NC}"
 
@@ -79,8 +73,7 @@ gen-reqs: venv
 run: install-deps
 	@echo -e "${CYAN}====================================================${NC}"
 	@echo -e "${CYAN}● Running the main script (vessel.py)...${NC}"
-	@$(call spinner, "Running script")
-	@$(PYTHON) vessel.py
+	@$(call spinner,$(shell $(PYTHON) vessel.py & echo $$!),"Running script")
 	@echo -e "${GREEN}✔ Script execution completed.${NC}"
 	@echo -e "${CYAN}====================================================${NC}"
 
@@ -89,11 +82,7 @@ run: install-deps
 clean:
 	@echo -e "${CYAN}====================================================${NC}"
 	@echo -e "${CYAN}● Cleaning up the environment...${NC}"
-	@$(call spinner, "Cleaning up")
-	@rm -rf $(VENV_DIR)
-	@find . -name '*.pyc' -delete
-	@find . -name '__pycache__' -delete
-	@rm -f requirements.txt
+	@$(call spinner,$(shell rm -rf $(VENV_DIR) & find . -name '*.pyc' -delete & find . -name '__pycache__' -delete & rm -f requirements.txt & echo $$!),"Cleaning up")
 	@echo -e "${GREEN}✔ Environment cleaned up successfully.${NC}"
 	@echo -e "${CYAN}====================================================${NC}"
 
@@ -102,18 +91,6 @@ clean:
 clean-pyc:
 	@echo -e "${CYAN}====================================================${NC}"
 	@echo -e "${CYAN}● Removing .pyc files and __pycache__ directories...${NC}"
-	@$(call spinner, "Removing .pyc files")
-	@find . -name '*.pyc' -delete
-	@find . -name '__pycache__' -delete
+	@$(call spinner,$(shell find . -name '*.pyc' -delete & find . -name '__pycache__' -delete & echo $$!),"Removing .pyc files")
 	@echo -e "${GREEN}✔ .pyc files and __pycache__ directories removed.${NC}"
-	@echo -e "${CYAN}====================================================${NC}"
-
-# Run tests (if you have a test script)
-.PHONY: test
-test: install-deps
-	@echo -e "${CYAN}====================================================${NC}"
-	@echo -e "${CYAN}● Running tests using test.py...${NC}"
-	@$(call spinner, "Running tests")
-	@$(PYTHON) test.py
-	@echo -e "${GREEN}✔ Tests executed successfully.${NC}"
-	@echo -e "${CYAN}====================================================${NC}"
+	@echo -e "${CYAN}
