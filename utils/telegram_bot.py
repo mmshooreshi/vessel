@@ -7,8 +7,7 @@ from telegram.ext import (
 from telegram.request import HTTPXRequest
 from utils.config import BOT_TOKEN, CHAT_ID, SOCKS_PROXY
 from utils.system_info import gather_system_info
-from telegram import Bot
-
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ def setup_bot():
     request = HTTPXRequest(proxy=SOCKS_PROXY, connection_pool_size=10, pool_timeout=5.0) if SOCKS_PROXY else None
     application = Application.builder().token(BOT_TOKEN).request(request).persistence(persistence).build()
     
-    application.job_queue.run_once(send_system_info, 1, chat_id=CHAT_ID)
+    application.job_queue.run_once(send_system_info, 1, data={"chat_id": CHAT_ID})
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -39,10 +38,12 @@ def setup_bot():
         persistent=True,
     )
     application.add_handler(conv_handler)
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+
+    return application  # Return the application instance
 
 async def send_system_info(context: CallbackContext) -> None:
-    chat_id = context.job.chat_id
+    chat_id = context.job.data["chat_id"]
     info = gather_system_info()
     logger.info(f"System Info: {info}")
     
@@ -83,7 +84,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logger.info(f"Received /start command from user: {update.effective_user.username} in chat {chat_id}")
     
     await update.message.reply_text("Hi! I'm ready to assist you. What would you like to do?", reply_markup=markup)
-    context.job_queue.run_once(send_system_info, 1, chat_id=chat_id)
+    context.job_queue.run_once(send_system_info, 1, data={"chat_id": chat_id})
     return CHOOSING
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -94,13 +95,12 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Goodbye! Use /start to begin again.", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 
-
-bot = Bot(token=BOT_TOKEN)
-
-def send_to_telegram_message(message: str):
-    try:
-        bot.send_message(chat_id=CHAT_ID, text=message)
-        logging.info(f"Message sent to Telegram: {message} | CHAT_ID: {CHAT_ID}")
-    except Exception as e:
-        logging.error(f"Error sending message to Telegram: {e}")
-        raise
+def send_to_telegram_message(application: Application, message: str):
+    async def async_send_message():
+        try:
+            await application.bot.send_message(chat_id=CHAT_ID, text=message)
+            logger.info(f"Message sent to Telegram: {message} | CHAT_ID: {CHAT_ID}")
+        except Exception as e:
+            logger.error(f"Error sending message to Telegram: {e}")
+            raise
+    asyncio.run(async_send_message())
