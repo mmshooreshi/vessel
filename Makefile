@@ -23,17 +23,17 @@ venv:
 .PHONY: install-deps
 install-deps: venv
 	@echo "Installing PySocks for SOCKS proxy support..."
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple  pysocks
+	@$(PIP) install  -i https://mirror-pypi.runflare.com/simple  pysocks
 	@echo "Installing dependencies from requirements.txt using SOCKS proxy..."
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple --proxy=$(SOCKS_PROXY) --upgrade pip
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple --proxy=$(SOCKS_PROXY) -r requirements.txt
+	@$(PIP) install --proxy=$(SOCKS_PROXY) --upgrade pip
+	@$(PIP) install --proxy=$(SOCKS_PROXY) -r requirements.txt
 	@echo "Dependencies installed successfully."
 
 # Generate requirements.txt using pipreqs
 .PHONY: gen-reqs
 gen-reqs: venv
 	@echo "Generating requirements.txt using pipreqs..."
-	@$(PIP) install -i https://mirror-pypi.runflare.com/simple pipreqs  # Ensure pipreqs is installed
+	@$(PIP) install pipreqs  # Ensure pipreqs is installed
 	@$(PIPREQS) .
 	@echo "requirements.txt generated successfully."
 
