@@ -23,7 +23,7 @@ venv:
 .PHONY: install-deps
 install-deps: venv
 	@echo "Installing PySocks for SOCKS proxy support..."
-	@$(PIP) install --proxy=$(SOCKS_PROXY) pysocks
+	@$(PIP) install  pysocks
 	@echo "Installing dependencies from requirements.txt using SOCKS proxy..."
 	@$(PIP) install --proxy=$(SOCKS_PROXY) --upgrade pip
 	@$(PIP) install --proxy=$(SOCKS_PROXY) -r requirements.txt
